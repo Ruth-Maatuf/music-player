@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 
 const app = express();
-const PORT = 3001;
+const port = process.env.PORT || 3001;
 
 app.use(cors({
   origin: '*', // מאפשר לכל אתר לפנות, זה יפתור את השגיאה בוודאות
@@ -164,6 +164,6 @@ app.get('/api/stream', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
