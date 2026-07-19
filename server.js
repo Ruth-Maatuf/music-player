@@ -41,11 +41,18 @@ app.get('/music/:eventCode/:folder/:genre/:filename', (req, res) => {
     try {
         const { eventCode, folder, genre, filename } = req.params;
         
-        // תיקון קריטי: ניקוי שם הקובץ מה-Token במידה והוא צורף ל-URL
+        // 1. ניקוי שם הקובץ מה-Token במידה והוא צורף ל-URL
         const cleanFilename = filename.split('?')[0];
 
-        const filePath = path.resolve(__dirname, 'music', eventCode, decodeURIComponent(folder), decodeURIComponent(genre), decodeURIComponent(cleanFilename));
+        // 2. פענוח כל חלק בנתיב כדי לתמוך בעברית ובתווים מיוחדים
+        const decodedFolder = decodeURIComponent(folder);
+        const decodedGenre = decodeURIComponent(genre);
+        const decodedFilename = decodeURIComponent(cleanFilename);
 
+        // 3. בניית הנתיב המלא באמצעות החלקים המפוענחים
+        const filePath = path.resolve(__dirname, 'music', eventCode, decodedFolder, decodedGenre, decodedFilename);
+
+        // 4. בדיקת קיום הקובץ
         if (!fs.existsSync(filePath)) {
             console.error("❌ הקובץ לא נמצא בנתיב:", filePath);
             return res.status(404).send('File not found');
