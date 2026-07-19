@@ -1,0 +1,58 @@
+{
+  "כללי": [
+    {
+      "title": "test.mp3",
+      "fileName": "test.mp3"
+    }
+  ],
+  "ניסיון": [
+    {
+      "title": "Avraham Fried Achim B_nefesh REMIX(MP3_320K).mp3",
+      "fileName": "Avraham Fried Achim B_nefesh REMIX(MP3_320K).mp3"
+    }
+  ],
+  "קצבי": [
+    {
+      "title": "בן צור - שמחה.mp3",
+      "fileName": "בן צור - שמחה.mp3"
+    },
+    {
+      "title": "שמוליק ברגר - יאבאבאי .mp3",
+      "fileName": "שמוליק ברגר - יאבאבאי .mp3"
+    },
+    {
+      "title": "ששון שאולוב & יאיר אלייצור הרע זה לא אני רמיקס נשמת קול חי דיג'ייס NKH Djs.mp3",
+      "fileName": "ששון שאולוב & יאיר אלייצור הרע זה לא אני רמיקס נשמת קול חי דיג'ייס NKH Djs.mp3"
+    },
+    {
+      "title": "ששון שאולוב - תמיד אוהב אותי (קאבר) (Davis Ext Remix).mp3",
+      "fileName": "ששון שאולוב - תמיד אוהב אותי (קאבר) (Davis Ext Remix).mp3"
+    },
+    {
+      "title": "ששון_שאולוב_עם_הנצח_Avishi_Ahroni_Remix_EXT (2).mp3",
+      "fileName": "ששון_שאולוב_עם_הנצח_Avishi_Ahroni_Remix_EXT (2).mp3"
+    }
+  ],
+  "שקט": [
+    {
+      "title": "בן צור - יין הונגרי.mp3",
+      "fileName": "בן צור - יין הונגרי.mp3"
+    },
+    {
+      "title": "בן צור - יש אמת אחת.mp3",
+      "fileName": "בן צור - יש אמת אחת.mp3"
+    },
+    {
+      "title": "בן צור - יש לי חלום.mp3",
+      "fileName": "בן צור - יש לי חלום.mp3"
+    },
+    {
+      "title": "בן צור - קרבחאל.mp3",
+      "fileName": "בן צור - קרבחאל.mp3"
+    },
+    {
+      "title": "בן צור - רוצי ילדה.mp3",
+      "fileName": "בן צור - רוצי ילדה.mp3"
+    }
+  ]
+}
