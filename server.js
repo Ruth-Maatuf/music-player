@@ -8,11 +8,7 @@ const unzipper = require('unzipper');
 const app = express();
 const port = process.env.PORT || 3001;
 
-const musicDir = path.join(__dirname, 'music');
-console.log("--- מבנה תיקיית music ---");
-fs.readdirSync(musicDir).forEach(file => {
-    console.log("נמצאה תיקייה/קובץ:", file);
-});
+
 // הגדרת אחסון
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -209,6 +205,11 @@ app.post('/api/upload-song', upload.single('song'), async (req, res) => {
 
     const targetDir = path.join(__dirname, 'music', eventCode);
 
+    // הוספת הבדיקה והיצירה לפני השימוש בתיקייה
+    if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+    }
+
     try {
         // 1. חילוץ הקבצים מה-ZIP
         await fs.createReadStream(req.file.path)
@@ -218,7 +219,7 @@ app.post('/api/upload-song', upload.single('song'), async (req, res) => {
         // 2. ניקוי שמות הקבצים בתיקייה שחולצה
         sanitizeDirectory(targetDir);
 
-        // 3. עדכון ה-JSON (כעת השמות נקיים)
+        // 3. עדכון ה-JSON
         const updateJsonWithFiles = (dir, fileList = []) => {
             const files = fs.readdirSync(dir);
             files.forEach(file => {
