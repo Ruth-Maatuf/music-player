@@ -6,24 +6,31 @@ const crypto = require('crypto');
 const multer = require('multer');
 const unzipper = require('unzipper');
 const app = express();
+require('dotenv').config();
+const cloudinary = require('cloudinary').v2;
+
+
 const port = process.env.PORT || 3001;
 
+const memoryStorage = multer.memoryStorage();
 
-// הגדרת אחסון
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, 'music', req.body.eventCode || 'general');
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname);
-    }
+// הגדרה ידנית של המשתנים לניסוי
+cloudinary.config({
+    cloud_name: 'khsnvhkw',
+    api_key: '331654641892112',
+    api_secret: 'P7_iMB0lSWc8JRDEZ94ncYMqw2o'
 });
-const upload = multer({ storage });
 
+// עדכון הבדיקה
+console.log("Cloudinary Config Check: תקין");
+
+
+
+
+console.log("Cloudinary Config Check:", !!process.env.API_KEY);
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
+
 
 app.use('/music', (req, res, next) => {
     console.log("--- בקשת שמע ---");
@@ -36,11 +43,13 @@ app.use('/music', (req, res, next) => {
 
 });
 
+const upload = multer({ storage: memoryStorage });
+
 // נתיב API מפורש לקריאת קבצי מוזיקה עם טיפול נכון בקידוד
 app.get('/music/:eventCode/:folder/:genre/:filename', (req, res) => {
     try {
         const { eventCode, folder, genre, filename } = req.params;
-        
+
         // 1. ניקוי שם הקובץ מה-Token במידה והוא צורף ל-URL
         const cleanFilename = filename.split('?')[0];
 
@@ -115,17 +124,18 @@ loadEventsFromDisk();
 
 const getFilesRecursive = (dir) => {
     let results = [];
-    // קריאת תוכן התיקייה הנוכחית
     const list = fs.readdirSync(dir, { withFileTypes: true });
 
     list.forEach(item => {
         const fullPath = path.join(dir, item.name);
         if (item.isDirectory()) {
-            // אם מצאנו תיקייה - קוראים לפונקציה שוב (רקורסיה)
             results = results.concat(getFilesRecursive(fullPath));
         } else if (item.name.toLowerCase().endsWith('.mp3') || item.name.toLowerCase().endsWith('.wav')) {
-            // אם זה קובץ אודיו - מוסיפים לרשימה
-            results.push(item.name);
+            // החזרה כאובייקט עם name ו-path
+            results.push({
+                name: item.name,
+                path: `https://res.cloudinary.com/khsnvhkw/video/upload/music/test4/${path.basename(path.dirname(fullPath))}/${item.name}`
+            });
         }
     });
     return results;
@@ -142,14 +152,17 @@ app.post('/api/verify-event', (req, res) => {
     if (!fs.existsSync(eventFolderPath)) fs.mkdirSync(eventFolderPath, { recursive: true });
 
     const playlist = {};
-    
+    console.log("נתיב האירוע שנסרק:", eventFolderPath);
+    const exists = fs.existsSync(eventFolderPath);
+    console.log("האם התיקייה קיימת?", exists);
+
     // 1. סריקת תיקיות המעטפת (למשל 'AA')
     const subfolders = fs.readdirSync(eventFolderPath, { withFileTypes: true })
         .filter(dirent => dirent.isDirectory());
 
     subfolders.forEach(aaFolder => {
         const aaPath = path.join(eventFolderPath, aaFolder.name);
-        
+
         // 2. סריקת הז'אנרים שנמצאים בתוך תיקיית המעטפת
         const genreFolders = fs.readdirSync(aaPath, { withFileTypes: true })
             .filter(dirent => dirent.isDirectory());
@@ -193,7 +206,7 @@ const sanitizeDirectory = (dir) => {
     items.forEach(item => {
         const oldPath = path.join(dir, item);
         const stats = fs.statSync(oldPath);
-        
+
         if (stats.isDirectory()) {
             sanitizeDirectory(oldPath);
         } else if (item.toLowerCase().endsWith('.mp3')) {
@@ -206,60 +219,98 @@ const sanitizeDirectory = (dir) => {
     });
 };
 
+// יש לוודא התקנה: npm install adm-zip
+const AdmZip = require('adm-zip');
+
+
 app.post('/api/upload-song', upload.single('song'), async (req, res) => {
     const { eventCode } = req.body;
-    if (!req.file) return res.status(400).json({ success: false, message: "לא נבחר קובץ" });
+    console.log("[Server] Files:", req.file);
+    console.log("[Server] Body:", req.body);
 
-    const targetDir = path.join(__dirname, 'music', eventCode);
-
-    // הוספת הבדיקה והיצירה לפני השימוש בתיקייה
-    if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+    if (!req.file || !req.file.buffer) {
+        console.error("[Server] ❌ הקובץ לא נמצא בזיכרון.");
+        return res.status(400).json({ success: false, message: "שגיאת העלאה: הקובץ לא נקלט" });
     }
+
+    console.log(`[Server] 🚀 עיבוד אירוע: ${eventCode} | גודל בזיכרון: ${req.file.buffer.length} bytes`);
 
     try {
-        // 1. חילוץ הקבצים מה-ZIP
-        await fs.createReadStream(req.file.path)
-            .pipe(unzipper.Extract({ path: targetDir }))
-            .promise();
+        const zip = new AdmZip(req.file.buffer);
+        const zipEntries = zip.getEntries();
 
-        // 2. ניקוי שמות הקבצים בתיקייה שחולצה
-        sanitizeDirectory(targetDir);
+        console.log(`[Server] 🔍 נמצאו ${zipEntries.length} פריטים ב-ZIP.`);
 
-        // 3. עדכון ה-JSON
-        const updateJsonWithFiles = (dir, fileList = []) => {
-            const files = fs.readdirSync(dir);
-            files.forEach(file => {
-                const fullPath = path.join(dir, file);
-                if (fs.lstatSync(fullPath).isDirectory()) {
-                    updateJsonWithFiles(fullPath, fileList);
-                } else if (file.toLowerCase().endsWith('.mp3')) {
-                    const relativePath = path.relative(path.join(__dirname, 'music'), fullPath);
-                    fileList.push({ name: file, path: relativePath });
-                }
-            });
-            return fileList;
-        };
-
-        const songsList = updateJsonWithFiles(targetDir);
-
-        // 4. שמירה ב-events.json
-        let events = JSON.parse(fs.readFileSync('events.json', 'utf8'));
-        const event = events.find(e => e.code === eventCode);
-        if (event) {
-            event.songs = songsList;
-            fs.writeFileSync('events.json', JSON.stringify(events, null, 2));
+        if (zipEntries.length === 0) {
+            return res.status(400).json({ success: false, message: "ה-ZIP ריק או לא תקין" });
         }
 
-        // 5. מחיקת קובץ ה-ZIP הזמני
-        fs.unlinkSync(req.file.path);
+        const songsList = [];
 
-        res.json({ success: true, message: "הקבצים חולצו, עברו ניקוי שמות, וה-JSON עודכן!" });
+        for (const entry of zipEntries) {
+            console.log("[DEBUG] Found entry:", entry.entryName);
+
+            if (entry.entryName.includes('__MACOSX')) continue;
+
+            // בדיקה האם הקובץ הוא MP3 (לא משנה אם הוא בתיקייה או לא)
+            if (entry.entryName.toLowerCase().endsWith('.mp3') && !entry.isDirectory) {
+
+                // כאן אנחנו מחלצים את שם התיקייה האחרונה כז'אנר
+                const parts = entry.entryName.split('/').filter(p => p.length > 0);
+                const genre = parts.length > 1 ? parts[parts.length - 2] : "General";
+                const songName = path.basename(entry.entryName, '.mp3');
+
+                console.log(`[DEBUG] Processing: ${songName} | Genre: ${genre}`);
+
+                try {
+                    const result = await new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            {
+                                resource_type: "video",
+                                folder: `music/${eventCode}/${genre}`,
+                                public_id: songName
+                            },
+                            (error, res) => error ? reject(error) : resolve(res)
+                        );
+                        stream.end(entry.getData());
+                    });
+                    songsList.push({ name: songName, genre, path: result.secure_url });
+                } catch (uploadErr) {
+                    console.error(`[Server] שגיאת העלאה ב-${songName}:`, uploadErr);
+                }
+            }
+        }
+
+        // ... (אחרי סיום הלולאה ואיסוף השירים לתוך songsList) ...
+
+        if (songsList.length === 0) {
+            return res.status(400).json({ success: false, message: "לא נמצאו קבצי MP3 תקינים ב-ZIP" });
+        }
+
+        // טעינה מחדש של הקובץ לפני כתיבה כדי לוודא שאין התנגשויות
+        let events = [];
+        if (fs.existsSync('events.json')) {
+            events = JSON.parse(fs.readFileSync('events.json', 'utf8'));
+        }
+
+        const eventIndex = events.findIndex(e => e.code === eventCode);
+
+        if (eventIndex !== -1) {
+            // הוספת השירים שנקלטו מהענן לרשימה
+            events[eventIndex].songs = songsList;
+
+            // כתיבה מסודרת לקובץ
+            fs.writeFileSync('events.json', JSON.stringify(events, null, 2));
+            console.log(`[Server] עודכן קובץ events.json עם ${songsList.length} שירים עבור ${eventCode}`);
+
+            res.json({ success: true, message: `הועלו ${songsList.length} שירים!`, urls: songsList });
+        } else {
+            res.status(404).json({ success: false, message: "קוד אירוע לא נמצא" });
+        }
 
     } catch (err) {
-        console.error("שגיאה בחילוץ ה-ZIP:", err);
-        return res.status(500).json({ success: false, message: "שגיאה בתהליך העיבוד" });
+        console.error("[Server] 💥 שגיאה בעיבוד ה-ZIP:", err);
+        res.status(500).json({ success: false, message: "שגיאה פנימית בעיבוד הקובץ" });
     }
 });
-
 app.listen(port, () => console.log(`Server running on port ${port}`));
